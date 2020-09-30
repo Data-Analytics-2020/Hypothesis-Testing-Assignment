@@ -78,6 +78,27 @@ scaled_cases_df.shape
 
 # ## Metro / Non-metro
 
+# The data is retrieved from 2013 NCHS Urban–Rural Classification Scheme, in which six levels scheme are defined according to the
+# following classification rules:
+# ### Metropolitan categories
+# 
+# **Large central metro**—Counties in MSAs of 1 million or more population that:
+# 1.	 Contain the entire population of the largest principal city of the MSA, or
+# 2.	 Have their entire population contained in the largest principal city of the MSA, or
+# 3.	 Contain at least 250,000 inhabitants of any principal city of the MSA.
+# 
+# **Large fringe metro**—Counties in MSAs of 1 million or more population that did not qualify as large central metro counties.
+# 
+# **Medium metro**—Counties in MSAs of populations of 250,000 to 999,999.  
+# 
+# **Small metro**—Counties in MSAs of populations less than 250,000.
+# 
+# ### Nonmetropolitan categories
+# 
+# **Micropolitan**—Counties in micropolitan statistical areas.
+# 
+# **Noncore**—Nonmetropolitan counties that did not qualify as micropolitan.
+
 # In[7]:
 
 
@@ -86,6 +107,8 @@ metro_df = getData(metro_url, truncate=253)
 metro_df = metro_df[[metro_df.filter(like='2013').columns[0], metro_df.filter(like='Metro Area').columns[0]]]
 #metro_df
 
+
+# ## Merging all into one dataframe
 
 # In[8]:
 
@@ -110,20 +133,20 @@ from matplotlib import ticker
 import matplotlib.dates as mdates
 
 figsize=(20,10)
-title_size = 22
+title_size = 24
 label_size = 18
 ticker_count= 8
 line_width = 2.5
 
 
-# ## 7-day average case count
+# ## 7-day average daily case count
 
 # In[10]:
 
 
 # create figure
 fig = plt.figure(figsize=figsize, dpi=60)
-#fig.suptitle('Daily case count per 100,000 of population', fontsize=32)
+fig.suptitle('7-day average daily case count per 100,000 of population', fontsize=32)
 # and its subplots
 ax1 = fig.add_subplot(1, 2, 1)
 config_subplot(ax1, 'NCHS Urban-Rural classificiation (2013)', title_size, ticker_count)
@@ -164,6 +187,7 @@ for line, name in zip(ax1.lines, metro_cls):
                 size=14, va="center")
     
 fig.tight_layout()
+fig.subplots_adjust(top=0.87)
 
 fig.savefig('graphs/hypothesis_8_1.png')
 
@@ -173,6 +197,8 @@ fig.savefig('graphs/hypothesis_8_1.png')
 # When we combine them into 2 main caterogies metro or non-metro, it even becomes clearer when those metro counties are almost always equal or lower than non-metro counterparts.
 
 # ## Heatmap
+
+# ### Calculating average daily cases by month 
 
 # In[11]:
 
@@ -193,20 +219,25 @@ for month in range(1,12,1):
 import numpy as np
 from matplotlib.pyplot import cm
 
+# configure figure
 fig_size = 6
 fig2 = plt.figure(figsize=(fig_size*3, fig_size*1.5))
-fig2.suptitle('Cumulative case count (per 100,000 of population)', fontsize=24)
+fig2.suptitle('Cumulative case count (per 100,000 of population)', fontsize=title_size)
 # fig2.text(0.085, 0.5, "Cumulative case count (per 100,000 of population)", va="center", rotation=90, fontsize=14)
 
-idx = 0
+# determine y-lim
 vmax = merged_df.iloc[:,3:].max().max()
+
+idx = 0
 for i, metro_type in enumerate(metro_types):
+    # filter by metro area
     avg_month_type_df = avg_month_df[avg_month_df['MetroArea'] == metro_type].iloc[:,3:]
     for month in avg_month_type_df:
+        # padding
         col = avg_month_type_df[month].values
         col = np.pad(col, (0, 10 - col.shape[0] % 10), 'constant')
         col = col.reshape((-1,10))
-            
+        # plotting
         idx += 1
         ax = fig2.add_subplot(2, 7, idx)
         ax.set_title(month, fontdict={'fontsize':12})
@@ -224,33 +255,9 @@ fig2.savefig('graphs/hypothesis_8_2.png')
 
 # ## Scatterplot
 
-# In[13]:
-
-
-import seaborn as sns
-
-cols=3
-fig3, axes = plt.subplots(2, cols, figsize=(15,10))
-fig3.suptitle('', fontsize=32)
-
-max = avg_month_df.iloc[:,3:].max().max()
-for month in range(4, 10, 1):
-    idx = month - 4
-    ax = axes[int(idx/cols)][idx%cols]
-    ax.set_ylim(0, max);
-    g = sns.scatterplot(data=avg_month_df, x="Population", y=calendar.month_name[month], hue='Classification', ax=ax)
-    g.set(xscale="log")
-    ax.get_legend().remove()
-    
-handles, labels = axes[1][2].get_legend_handles_labels()
-fig3.legend(handles, labels, loc='upper right')
-
-fig3.savefig('graphs/hypothesis_8_3.png')
-
-
 # ### Melting Daily into Month for easier plotting
 
-# In[14]:
+# In[13]:
 
 
 melt_avg_month_df = avg_month_df.drop(avg_month_df.keys()[3], axis=1)
@@ -260,25 +267,57 @@ melt_avg_month_df = pd.melt(melt_avg_month_df, id_vars=keys[:3], value_vars=keys
 melt_avg_month_df
 
 
-# In[15]:
+# In[14]:
 
 
 import seaborn as sns
 
-pop = melt_avg_month_df['Population']
-daily = melt_avg_month_df['Daily']
-
 g = sns.lmplot(data=melt_avg_month_df, col='Month', x='Population', y='Daily', scatter=True,
                hue='Classification', col_wrap=3, ci=40, scatter_kws={'linewidths':1, 'edgecolor':'w'})
+
+# log xscale and set axis limits
+pop = melt_avg_month_df['Population']
+daily = melt_avg_month_df['Daily']
 g.set(xlim=(pop.min(), pop.max()), ylim=(daily.min(), daily.max()), xscale='log')
 
-g.savefig('graphs/hypothesis_8_4.png')
+# add title
+fig4 = g.fig
+fig4.subplots_adjust(top=0.9)
+fig4.suptitle('Cumulative case count (per 100,000 of population)', fontsize=title_size)
+
+g.savefig('graphs/hypothesis_8_3.png')
+
+
+# ### Without regression
+
+# In[15]:
+
+
+# import seaborn as sns
+
+# cols=3
+# fig3, axes = plt.subplots(2, cols, figsize=(15,10))
+# fig3.suptitle('Cumulative case count (per 100,000 of population)', fontsize=title_size)
+
+# ylim = avg_month_df.iloc[:,3:].max().max()
+# for month in range(4, 10, 1):
+#     idx = month - 4
+#     ax = axes[int(idx/cols)][idx%cols]
+#     ax.set_ylim(0, ylim);
+#     g = sns.scatterplot(data=avg_month_df, x="Population", y=calendar.month_name[month], hue='Classification', ax=ax)
+#     g.set(xscale="log")
+#     ax.get_legend().remove()
+    
+# handles, labels = axes[1][2].get_legend_handles_labels()
+# fig3.legend(handles, labels, loc='upper right')
+
+# fig3.savefig('graphs/hypothesis_8_4.png')
 
 
 # # Performing statistical tests
 
 # Null hypothesis (H0): There is no difference between spread rate of rural and urban counties.  
-# Alternative hypothesis (H1): Rural counties had less spread.
+# Alternative hypothesis (H1): Rural counties had different spread rate from urban counties.
 
 # In[16]:
 
@@ -288,32 +327,53 @@ import time
 np.random.seed(int(time.time()))
 
 
-# # Paired T-Test
+# ## Paired T-Test
+
+# Splitting the data into metro and non-metro
 
 # In[17]:
 
 
-case_metro_df = merged_df[merged_df['MetroArea'] == 'Metro'].iloc[:,3:]
-case_non_metro_df = merged_df[merged_df['MetroArea'] == 'Non-Metro'].iloc[:,3:]
+case_metro_df = merged_df[merged_df['MetroArea'] == 'Metro'].iloc[:,3:].mean()
+case_non_metro_df = merged_df[merged_df['MetroArea'] == 'Non-Metro'].iloc[:,3:].mean()
 
+
+# then perform paired T-Test on them
 
 # In[18]:
 
 
 # stats.ttest_ind(case_non_metro_df.mean(), case_metro_df.mean(), equal_var = False)
-stats.ttest_rel(case_non_metro_df.mean(), case_metro_df.mean())
+stats.ttest_rel(case_non_metro_df, case_metro_df)
 
 
-# The p-value is 0.001, which is less than the stardard threshold 0.05 and 0.01, so we reject the null hypothesis and we can say that rural counties had less spread.
+# The p-value is 0.001, which is less than the stardard threshold 0.05 and 0.01, so we reject the null hypothesis and we can say that rural counties had different spread rate from urban ones.
+
+# ## Chi-square test
+
+# On a second thought, chi-square test might not be suitable for this problem
 
 # In[19]:
 
 
+# first_not_zero = max((case_metro_df != 0).idxmax(), (case_non_metro_df != 0).idxmax())
+# no_zero_metro_df = case_metro_df[first_not_zero:]
+# no_zero_non_metro_df = case_non_metro_df[first_not_zero:]
+# max_case = max(no_zero_metro_df[-1], no_zero_non_metro_df[-1])
+
+max_case = max(case_metro_df[-1], case_non_metro_df[-1])
+interval = 400
+intervals = range(0, int(max_case + interval), interval)
+expected = case_metro_df.groupby(pd.cut(case_metro_df, intervals)).count()
+observed = case_non_metro_df.groupby(pd.cut(case_non_metro_df, intervals)).count()
+
 #stats.chisquare(case_metro_df.mean(), case_non_metro_df.mean(), ddof=case_metro_df.shape[0]-1)
-#stats.chisquare(case_metro_df.iloc[:,30:].mean(), case_non_metro_df.iloc[:,30:].mean(), ddof=case_metro_df.shape[0]-1)
+stats.chisquare(observed.values, f_exp=expected, ddof=observed.shape[0]-1)
 
 
-# # ANOVA
+# ## ANOVA
+
+# Attemp to split data into 3 categories: small, medium and large population, then perform ANOVA on them
 
 # In[20]:
 
@@ -325,8 +385,12 @@ urban = merged_df[cls.isin(['Large Fringe Metro', 'Large Central Metro'])].iloc[
 stats.f_oneway(rural.mean(), mixed.mean(), urban.mean())
 
 
+# the same approach as above, but use all 5 classifications instead
+
 # In[21]:
 
 
 stats.f_oneway(*merged_df.groupby('Classification').mean().values)
 
+
+# Both results are much larger than standard thresholds, so we do not have enough evidence to reject the hypothesis.
