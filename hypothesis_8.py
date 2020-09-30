@@ -3,7 +3,7 @@
 
 # # Predefined functions
 
-# In[271]:
+# In[2]:
 
 
 import pandas as pd
@@ -17,7 +17,7 @@ def getData(url, sheet_name=0, skiprows=0, truncate=-1, index_column='County Nam
     return df
 
 
-# In[272]:
+# In[3]:
 
 
 def config_subplot(ax, label, fontsize=12, ticker_count=3):
@@ -34,14 +34,14 @@ def config_subplot(ax, label, fontsize=12, ticker_count=3):
 
 # ## Cumulative case count
 
-# In[273]:
+# In[4]:
 
 
 url = "https://dshs.texas.gov/coronavirus/TexasCOVID19DailyCountyCaseCountData.xlsx"
 cases_df = getData(url, skiprows=2, truncate=253)
 
 
-# In[274]:
+# In[5]:
 
 
 import re
@@ -54,7 +54,7 @@ dates = [datetime.strptime(date, '%m-%d') for date in cases_df.keys()]
 
 # ### Scale the data down to per 100k capita
 
-# In[275]:
+# In[6]:
 
 
 pop_url = "https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/counties/totals/co-est2019-alldata.csv"
@@ -65,11 +65,11 @@ pop_df = pop_df.set_index('County Name')
 pop_df = pop_df[pop_df['STNAME'] == 'Texas']
 # get latest population
 pop_df = pop_df[pop_df.filter(like='2019').columns[0]]
-# remove suffix 'County' in name
+# remove suffix ' County' in name
 pop_df.index = pop_df.index.map(lambda x: x.replace(' County', ''))
 
 
-# In[276]:
+# In[7]:
 
 
 scaled_cases_df = cases_df.apply(lambda row: row * 1e5 / pop_df[row.index])
@@ -78,7 +78,7 @@ scaled_cases_df.shape
 
 # ## Metro / Non-metro
 
-# In[277]:
+# In[8]:
 
 
 metro_url = "http://www.dshs.state.tx.us/chs/info/TxCoPhrMsa.xls"
@@ -87,7 +87,7 @@ metro_df = metro_df[[metro_df.filter(like='2013').columns[0], metro_df.filter(li
 #metro_df
 
 
-# In[278]:
+# In[9]:
 
 
 # population
@@ -102,7 +102,7 @@ merged_df
 
 # # Plotting
 
-# In[279]:
+# In[10]:
 
 
 import matplotlib.pyplot as plt
@@ -112,12 +112,13 @@ import matplotlib.dates as mdates
 figsize=(20,10)
 title_size = 22
 label_size = 18
-ticker_count=8
+ticker_count= 8
+line_width = 2.5
 
 
 # ## 7-day average case count
 
-# In[280]:
+# In[24]:
 
 
 # create figure
@@ -136,15 +137,19 @@ for cls in metro_cls:
     df = merged_df[merged_df['Classification'] == cls].iloc[:,3:]
     df = df.mean().diff().rolling(window=7).mean()
     #print(df.iloc[:,:-1].max().max())
-    ax1.plot(dates, df, label=cls)
+    ax1.plot(dates, df, label=cls, linewidth=line_width)
 
 # plotting average values of each metro classification
 metro_types = ['Non-Metro', 'Metro']
 for metro_type in metro_types:
     df = merged_df[merged_df['MetroArea'] == metro_type].iloc[:,3:]
     df = df.mean().diff().rolling(window=7).mean()
-    ax2.plot(dates, df, label=metro_type)
+    ax2.plot(dates, df, label=metro_type, linewidth=line_width)
 
+# using same ylim
+# ax1.set_ylim(0, 45);
+# ax2.set_ylim(0, 45);
+    
 # configure legend
 handles, labels = ax1.get_legend_handles_labels()
 ax1.legend(handles, labels, loc='upper left', fontsize='xx-large')
@@ -163,9 +168,13 @@ fig.tight_layout()
 fig.savefig('graphs/hypothesis_8_1.png')
 
 
+# Contrary to the hypothesis, the daily number of new cases of rural counties appears to be a little higher than those urban ones, especially with micropolitan counties top the graph during the outbreak period. Small-metro counties seems to has least spread, while other types are somewhat similar to each other.
+# 
+# When we combine them into 2 main caterogies metro or non-metro, it even becomes clearer when those metro counties are almost always equal or lower than non-metro counterparts.
+
 # ## Heatmap
 
-# In[281]:
+# In[12]:
 
 
 import calendar
@@ -178,7 +187,7 @@ for month in range(1,12,1):
 # avg_month_df
 
 
-# In[282]:
+# In[56]:
 
 
 import numpy as np
@@ -186,8 +195,8 @@ from matplotlib.pyplot import cm
 
 fig_size = 6
 fig2 = plt.figure(figsize=(fig_size*3, fig_size*1.5))
-fig2.suptitle('', fontsize=32)
-fig2.text(0.085, 0.5, "Cumulative case count (per 100,000 of population)", va="center", rotation=90, fontsize=14)
+fig2.suptitle('Cumulative case count (per 100,000 of population)', fontsize=24)
+# fig2.text(0.085, 0.5, "Cumulative case count (per 100,000 of population)", va="center", rotation=90, fontsize=14)
 
 idx = 0
 vmax = merged_df.iloc[:,3:].max().max()
@@ -199,17 +208,23 @@ for i, metro_type in enumerate(metro_types):
         col = col.reshape((-1,10))
             
         idx += 1
-        ax = fig2.add_subplot(2, 8, idx)
+        ax = fig2.add_subplot(2, 7, idx)
         ax.set_title(month, fontdict={'fontsize':12})
         heatmap = ax.imshow(col, cmap=cm.Reds, vmax=vmax)
-    idx = 8
-    
+        ax.set_axis_off()
+        
+# configure colorbar
+fig2.subplots_adjust(bottom=0.2)
+fig2.colorbar(heatmap, orientation="horizontal", fraction=0.07,anchor=(1.0,0.0))
+
 fig2.savefig('graphs/hypothesis_8_2.png')
 
 
+# Looking at corresponding heatmap of those two types, we can clearly see that there is also way many more counties with darker color in non-metro type, indicating greater spread compared to metro counties.
+
 # ## Scatterplot
 
-# In[283]:
+# In[18]:
 
 
 import seaborn as sns
@@ -218,12 +233,14 @@ cols=3
 fig3, axes = plt.subplots(2, cols, figsize=(15,10))
 fig3.suptitle('', fontsize=32)
 
+max = avg_month_df.iloc[:,3:].max().max()
 for month in range(4, 10, 1):
     idx = month - 4
-    ax = ax=axes[int(idx/cols)][idx%cols]
+    ax = axes[int(idx/cols)][idx%cols]
+    ax.set_ylim(0, max);
     g = sns.scatterplot(data=avg_month_df, x="Population", y=calendar.month_name[month], 
                         hue='Classification', ax=ax)
-    g.set(xscale="log");
+    g.set(xscale="log")
     ax.get_legend().remove()
 #     plt.setp(ax.get_legend().get_texts(), fontsize='7')
     
@@ -238,7 +255,7 @@ fig3.savefig('graphs/hypothesis_8_3.png')
 # Null hypothesis (H0): There is no difference between spread rate of rural and urban counties.  
 # Alternative hypothesis (H1): Rural counties had less spread.
 
-# In[284]:
+# In[ ]:
 
 
 from scipy import stats
@@ -248,14 +265,14 @@ np.random.seed(int(time.time()))
 
 # # Paired T-Test
 
-# In[285]:
+# In[ ]:
 
 
 case_metro_df = merged_df[merged_df['MetroArea'] == 'Metro'].iloc[:,3:]
 case_non_metro_df = merged_df[merged_df['MetroArea'] == 'Non-Metro'].iloc[:,3:]
 
 
-# In[286]:
+# In[ ]:
 
 
 # stats.ttest_ind(case_non_metro_df.mean(), case_metro_df.mean(), equal_var = False)
@@ -264,7 +281,7 @@ stats.ttest_rel(case_non_metro_df.mean(), case_metro_df.mean())
 
 # The p-value is 0.001, which is less than the stardard threshold 0.05 and 0.01, so we reject the null hypothesis and we can say that rural counties had less spread.
 
-# In[287]:
+# In[ ]:
 
 
 #stats.chisquare(case_metro_df.mean(), case_non_metro_df.mean(), ddof=case_metro_df.shape[0]-1)
@@ -273,7 +290,7 @@ stats.ttest_rel(case_non_metro_df.mean(), case_metro_df.mean())
 
 # # ANOVA
 
-# In[288]:
+# In[ ]:
 
 
 cls = merged_df['Classification']
@@ -283,7 +300,7 @@ urban = merged_df[cls.isin(['Large Fringe Metro', 'Large Central Metro'])].iloc[
 stats.f_oneway(rural.mean(), mixed.mean(), urban.mean())
 
 
-# In[289]:
+# In[ ]:
 
 
 stats.f_oneway(*merged_df.groupby('Classification').mean().values)
