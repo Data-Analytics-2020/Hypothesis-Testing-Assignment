@@ -3,7 +3,7 @@
 
 # # Predefined functions
 
-# In[ ]:
+# In[1]:
 
 
 import pandas as pd
@@ -17,7 +17,7 @@ def getData(url, sheet_name=0, skiprows=0, truncate=-1, index_column='County Nam
     return df
 
 
-# In[ ]:
+# In[2]:
 
 
 def config_subplot(ax, label, fontsize=12, ticker_count=3):
@@ -34,14 +34,14 @@ def config_subplot(ax, label, fontsize=12, ticker_count=3):
 
 # ## Cumulative case count
 
-# In[ ]:
+# In[3]:
 
 
 url = "https://dshs.texas.gov/coronavirus/TexasCOVID19DailyCountyCaseCountData.xlsx"
 cases_df = getData(url, skiprows=2, truncate=253)
 
 
-# In[ ]:
+# In[4]:
 
 
 import re
@@ -54,7 +54,7 @@ dates = [datetime.strptime(date, '%m-%d') for date in cases_df.keys()]
 
 # ### Scale the data down to per 100k capita
 
-# In[ ]:
+# In[5]:
 
 
 pop_url = "https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/counties/totals/co-est2019-alldata.csv"
@@ -69,7 +69,7 @@ pop_df = pop_df[pop_df.filter(like='2019').columns[0]]
 pop_df.index = pop_df.index.map(lambda x: x.replace(' County', ''))
 
 
-# In[ ]:
+# In[6]:
 
 
 scaled_cases_df = cases_df.apply(lambda row: row * 1e5 / pop_df[row.index])
@@ -99,7 +99,7 @@ scaled_cases_df.shape
 # 
 # **Noncore**—Nonmetropolitan counties that did not qualify as micropolitan.
 
-# In[ ]:
+# In[7]:
 
 
 metro_url = "http://www.dshs.state.tx.us/chs/info/TxCoPhrMsa.xls"
@@ -110,7 +110,7 @@ metro_df = metro_df[[metro_df.filter(like='2013').columns[0], metro_df.filter(li
 
 # ## Merging all into one dataframe
 
-# In[ ]:
+# In[8]:
 
 
 # population
@@ -125,7 +125,7 @@ merged_df
 
 # # Plotting
 
-# In[ ]:
+# In[9]:
 
 
 import matplotlib.pyplot as plt
@@ -141,7 +141,7 @@ line_width = 2.5
 
 # ## 7-day average daily case count
 
-# In[ ]:
+# In[10]:
 
 
 # create figure
@@ -200,7 +200,7 @@ fig.savefig('../graphs/hypothesis_8_1.png')
 
 # ### Calculating average daily cases by month 
 
-# In[ ]:
+# In[11]:
 
 
 import calendar
@@ -213,7 +213,7 @@ for month in range(1,12,1):
 # avg_month_df
 
 
-# In[ ]:
+# In[12]:
 
 
 import numpy as np
@@ -232,6 +232,7 @@ idx = 0
 for i, metro_type in enumerate(metro_types):
     # filter by metro area
     avg_month_type_df = avg_month_df[avg_month_df['MetroArea'] == metro_type].iloc[:,3:]
+    cols = len(avg_month_type_df.keys())
     for month in avg_month_type_df:
         # padding
         col = avg_month_type_df[month].values
@@ -239,7 +240,7 @@ for i, metro_type in enumerate(metro_types):
         col = col.reshape((-1,10))
         # plotting
         idx += 1
-        ax = fig2.add_subplot(2, 7, idx)
+        ax = fig2.add_subplot(2, cols, idx)
         ax.set_title(month, fontdict={'fontsize':12})
         heatmap = ax.imshow(col, cmap=cm.Reds, vmax=vmax)
         ax.set_axis_off()
@@ -257,7 +258,7 @@ fig2.savefig('../graphs/hypothesis_8_2.png')
 
 # ### Melting Daily into Month for easier plotting
 
-# In[ ]:
+# In[13]:
 
 
 melt_avg_month_df = avg_month_df.drop(avg_month_df.keys()[3], axis=1)
@@ -267,7 +268,7 @@ melt_avg_month_df = pd.melt(melt_avg_month_df, id_vars=keys[:3], value_vars=keys
 melt_avg_month_df
 
 
-# In[ ]:
+# In[14]:
 
 
 import seaborn as sns
@@ -290,7 +291,7 @@ g.savefig('../graphs/hypothesis_8_3.png')
 
 # ### Without regression
 
-# In[ ]:
+# In[15]:
 
 
 # import seaborn as sns
@@ -319,7 +320,7 @@ g.savefig('../graphs/hypothesis_8_3.png')
 # Null hypothesis (H0): There is no difference between spread rate of rural and urban counties.  
 # Alternative hypothesis (H1): Rural counties had different spread rate from urban counties.
 
-# In[ ]:
+# In[16]:
 
 
 from scipy import stats
@@ -331,7 +332,7 @@ np.random.seed(int(time.time()))
 
 # Splitting the data into metro and non-metro
 
-# In[ ]:
+# In[17]:
 
 
 case_metro_df = merged_df[merged_df['MetroArea'] == 'Metro'].iloc[:,3:].mean()
@@ -340,7 +341,7 @@ case_non_metro_df = merged_df[merged_df['MetroArea'] == 'Non-Metro'].iloc[:,3:].
 
 # then perform paired T-Test on them
 
-# In[ ]:
+# In[18]:
 
 
 # stats.ttest_ind(case_non_metro_df.mean(), case_metro_df.mean(), equal_var = False)
@@ -353,7 +354,7 @@ stats.ttest_rel(case_non_metro_df, case_metro_df)
 
 # On a second thought, chi-square test might not be suitable for this problem
 
-# In[ ]:
+# In[19]:
 
 
 # first_not_zero = max((case_metro_df != 0).idxmax(), (case_non_metro_df != 0).idxmax())
@@ -375,7 +376,7 @@ stats.chisquare(observed.values, f_exp=expected, ddof=observed.shape[0]-1)
 
 # Attemp to split data into 3 categories: small, medium and large population, then perform ANOVA on them
 
-# In[ ]:
+# In[20]:
 
 
 cls = merged_df['Classification']
@@ -387,7 +388,7 @@ stats.f_oneway(rural.mean(), mixed.mean(), urban.mean())
 
 # the same approach as above, but use all 5 classifications instead
 
-# In[ ]:
+# In[21]:
 
 
 stats.f_oneway(*merged_df.groupby('Classification').mean().values)
