@@ -113,3 +113,64 @@ for line, name in zip(ax.lines, ['Daily', '7-day']):
 
 fig.savefig('../graphs/hypothesis_3.png')
 
+
+# # Statistical testing
+
+# In[6]:
+
+
+import numpy as np
+
+test_df = cases_df.T.copy().diff().replace(np.nan, 0)
+
+# class into 4 tie period for test 
+
+# rate1 before 05-01
+r1 = test_df.iloc[0:55]
+test_df['rate1'] = r1['Total']/28995881
+
+# rate2 between 05-01 to 06-02
+r2 = test_df.iloc[55:88]
+test_df['rate2'] = r2['Total']/28995881
+
+# rate3 between 06-03 to 07-02
+r3 = test_df.iloc[88:118]
+test_df['rate3'] = r3['Total']/28995881
+
+# rate4 after 07-02
+r4 = test_df.iloc[118:]
+test_df['rate4'] = r4['Total']/28995881
+test_df = test_df.replace(np.nan, 0)
+#test_df
+
+
+# ## Paired T-test
+
+# In[7]:
+
+
+# paired tests 
+from scipy import stats
+print(stats.ttest_rel(test_df['rate1'], test_df['rate2'])) 
+print(stats.ttest_rel(test_df['rate2'], test_df['rate3']))
+print(stats.ttest_rel(test_df['rate2'], test_df['rate4']))
+
+
+# # Z-test
+
+# In[8]:
+
+
+# z-test
+from statsmodels.stats import weightstats as stets
+stets.ztest(test_df['rate3'], test_df['rate2'], value=0, alternative='two-sided')
+
+
+# # ANOVA
+
+# In[9]:
+
+
+# ANOVA
+stats.f_oneway(test_df['rate2'], test_df['rate3'])
+
